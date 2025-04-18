@@ -1,0 +1,32 @@
+name: Generate KML Files JSON
+
+on:
+  push:
+    paths:
+      - kml/**
+
+jobs:
+  generate-json:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Generate kml_files.json
+        run: |
+          echo "[" > kml_files.json
+          for file in kml/*.kml; do
+            if [ -f "$file" ]; then
+              echo "  \"$(basename "$file")\"," >> kml_files.json
+            fi
+          done
+          sed -i '$ s/,$//' kml_files.json
+          echo "]" >> kml_files.json
+
+      - name: Commit changes locally
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add kml_files.json
+          git commit -m "Update kml_files.json"
+          git push
