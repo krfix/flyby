@@ -55,11 +55,12 @@ async function processKmlFiles() {
 
 // Initialize the map
 function initializeMap() {
-    const map = L.map('map').setView([52.0, 19.0], 6);
+    const map = L.map('map', { zoomControl: true }); // Remove setView to avoid initial Poland view
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
+        attribution: '© OpenStreetMap contributors'
     }).addTo(map);
-    return map;
+    const polylineGroup = L.featureGroup().addTo(map);
+    return { map, polylineGroup };
 }
 
 // Create and style the dropdown
@@ -97,14 +98,19 @@ function createDropdown() {
 }
 
 // Add polylines to the map
-function addPolylinesToMap(map, dropdown, polylines) {
+function addPolylinesToMap(map, dropdown, polylines, polylineGroup) {
     polylines.forEach(polylineData => {
         L.polyline(polylineData.path, { color: '#3C3CE8', weight: 2, opacity: 1.0 })
-            .addTo(map)
+            .addTo(polylineGroup)
             .bindTooltip(polylineData.name);
     });
 
-    // Populate dropdown with polyline names
+    if (polylineGroup.getLayers().length > 0) {
+        map.fitBounds(polylineGroup.getBounds(), {
+            padding: [10, 10]
+        });
+    }
+
     polylines.sort().reverse().forEach(polylineData => {
         const option = document.createElement('option');
         option.value = polylineData.name;
@@ -112,18 +118,20 @@ function addPolylinesToMap(map, dropdown, polylines) {
         dropdown.appendChild(option);
     });
 
-    // Add event listener to the dropdown
     dropdown.addEventListener('change', function () {
         const selectedPolylineName = this.value;
         map.eachLayer(function (layer) {
             if (layer instanceof L.Polyline) {
                 if (selectedPolylineName === 'all' || selectedPolylineName === '') {
-                    layer.setStyle({ color: '#3C3CE8', opacity: 1.0 }); // Reset to default style
+                    layer.setStyle({ color: '#3C3CE8', opacity: 1.0 });
+                    if (selectedPolylineName === 'all' || selectedPolylineName === '') {
+                        map.fitBounds(polylineGroup.getBounds(), { padding: [50, 50] });
+                    }
                 } else if (layer.getTooltip() && layer.getTooltip().getContent() === selectedPolylineName) {
-                    layer.setStyle({ color: '#FF0000', opacity: 1.0 }); // Highlight selected polyline
-                    map.fitBounds(layer.getBounds()); // Zoom to the selected polyline
+                    layer.setStyle({ color: '#FF0000', opacity: 1.0 });
+                    map.fitBounds(layer.getBounds());
                 } else {
-                    layer.setStyle({ opacity: 0.0 }); // Hide other polylines
+                    layer.setStyle({ opacity: 0.0 });
                 }
             }
         });
@@ -132,7 +140,7 @@ function addPolylinesToMap(map, dropdown, polylines) {
 
 // Main function to initialize and process everything
 function main() {
-    const map = initializeMap();
+    const { map, polylineGroup } = initializeMap();
     const dropdown = createDropdown();
 
     processKmlFiles().then(polylines => {
@@ -140,7 +148,7 @@ function main() {
             console.error('No KML files found or processed.');
             return;
         }
-        addPolylinesToMap(map, dropdown, polylines);
+        addPolylinesToMap(map, dropdown, polylines, polylineGroup);
     });
 }
 
