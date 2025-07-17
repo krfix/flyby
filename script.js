@@ -39,48 +39,19 @@ async function fetchKmlList() {
 }
 
 async function processKmlFiles() {
-    const kmlFiles = await fetchKmlList();
-    for (const file of kmlFiles) {
-        const fileUrl = `${kmlBaseUrl}/${file}`;
-        try {
-            const response = await fetch(fileUrl);
-            if (!response.ok) {
-                console.error(`Failed to fetch ${file}:`, response.statusText);
-                continue;
-            }
-
-            const kmlContent = await response.text();
-            const doc = new DOMParser().parseFromString(kmlContent, 'text/xml');
-            let path = [];
-
-            // Try gx:Track first
-            const tracks = doc.getElementsByTagName('gx:Track');
-            if (tracks.length > 0) {
-                for (let i = 0; i < tracks.length; i++) {
-                    path = path.concat(extractCoordsFromTrack(tracks[i]));
-                }
-            }
-
-            // If no gx:Track, try LineString
-            if (path.length === 0) {
-                const lineStrings = doc.getElementsByTagName('LineString');
-                for (let i = 0; i < lineStrings.length; i++) {
-                    path = path.concat(extractCoordsFromLineString(lineStrings[i]));
-                }
-            }
-
-            if (path.length > 0) {
-                const name = file.replace('.kml', '');
-                const polylineData = { name, path };
-                polylinesJs.push(polylineData);
-            }
-        } catch (error) {
-            console.error(`Error processing ${file}:`, error);
+    try {
+        const response = await fetch('kml_polylines.json');
+        if (!response.ok) {
+            throw new Error(`Failed to fetch preprocessed polylines: ${response.statusText}`);
         }
+        const polylines = await response.json();
+        return polylines;
+    } catch (error) {
+        console.error('Error loading preprocessed KML data:', error);
+        return [];
     }
-
-    return polylinesJs;
 }
+
 
 // Initialize the map
 function initializeMap() {

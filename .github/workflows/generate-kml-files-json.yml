@@ -1,4 +1,4 @@
-name: Generate KML Files JSON
+name: Generate KML Files JSON and Polylines
 
 on:
   push:
@@ -23,10 +23,18 @@ jobs:
           sed -i '$ s/,$//' kml_files.json
           echo "]" >> kml_files.json
 
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.11
+
+      - name: Generate kml_polylines.json
+        run: python3 scripts/convert_kmls_to_json.py
+
       - name: Commit changes locally
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add kml_files.json
-          git commit -m "Update kml_files.json"
+          git add kml_files.json kml_polylines.json
+          git commit -m "Update KML JSON files"
           git push
