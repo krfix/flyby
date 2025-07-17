@@ -102,18 +102,27 @@ function createDropdown() {
 
 // Add polylines to the map
 function addPolylinesToMap(map, dropdown, polylines, polylineGroup) {
+    console.log('Adding polylines:', polylines.length); // Debug: Confirm polylines loaded
     polylines.forEach(polylineData => {
         L.polyline(polylineData.path, { color: '#3C3CE8', weight: 2, opacity: 1.0 })
             .addTo(polylineGroup)
             .bindTooltip(polylineData.name);
     });
 
+    // Fit map to show all polylines on load with custom padding
     if (polylineGroup.getLayers().length > 0) {
-        map.fitBounds(polylineGroup.getBounds(), {
-            padding: [50, 50]
+        const bounds = polylineGroup.getBounds();
+        console.log('Fitting bounds to polylines with padding [10, 10]', bounds); // Debug: Log padding and bounds
+        map.fitBounds(bounds, {
+            padding: [50, 50], // Tighter 10-pixel margins
+            maxZoom: 12 // Allow closer zoom with fractional levels
         });
+    } else {
+        console.warn('No polylines loaded, setting fallback view'); // Debug: Fallback
+        map.setView([0, 0], 1); // Fallback world view
     }
 
+    // Populate dropdown with polyline names
     polylines.sort().reverse().forEach(polylineData => {
         const option = document.createElement('option');
         option.value = polylineData.name;
@@ -121,20 +130,27 @@ function addPolylinesToMap(map, dropdown, polylines, polylineGroup) {
         dropdown.appendChild(option);
     });
 
+    // Add event listener to the dropdown
     dropdown.addEventListener('change', function () {
         const selectedPolylineName = this.value;
+        console.log('Dropdown changed to:', selectedPolylineName); // Debug: Confirm dropdown
         map.eachLayer(function (layer) {
             if (layer instanceof L.Polyline) {
                 if (selectedPolylineName === 'all' || selectedPolylineName === '') {
-                    layer.setStyle({ color: '#3C3CE8', opacity: 1.0 });
-                    if (selectedPolylineName === 'all' || selectedPolylineName === '') {
-                        map.fitBounds(polylineGroup.getBounds(), { padding: [50, 50] });
-                    }
+                    layer.setStyle({ color: '#3C3CE8', opacity: 1.0 }); // Show all polylines
+                    console.log('Fitting bounds to all polylines with padding [10, 10]'); // Debug
+                    map.fitBounds(polylineGroup.getBounds(), { 
+                        padding: [50, 50], // Tighter 10-pixel margins
+                        maxZoom: 12 // Allow closer zoom
+                    });
                 } else if (layer.getTooltip() && layer.getTooltip().getContent() === selectedPolylineName) {
-                    layer.setStyle({ color: '#FF0000', opacity: 1.0 });
-                    map.fitBounds(layer.getBounds());
+                    layer.setStyle({ color: '#FF0000', opacity: 1.0 }); // Highlight selected
+                    console.log('Fitting bounds to single polyline with padding [10, 10]'); // Debug
+                    map.fitBounds(layer.getBounds(), { 
+                        padding: [50, 50] // Consistent padding for single polyline
+                    });
                 } else {
-                    layer.setStyle({ opacity: 0.0 });
+                    layer.setStyle({ opacity: 0.0 }); // Hide other polylines
                 }
             }
         });
