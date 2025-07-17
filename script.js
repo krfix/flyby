@@ -57,11 +57,21 @@ async function processKmlFiles() {
 function initializeMap() {
     const map = L.map('map', {
         zoomControl: true,
-        zoomSnap: 0 // Enable fractional zoom for smoother padding adjustments
+        zoomSnap: 0, // Enable fractional zoom for smoother padding adjustments
+        zoomDelta: 0.25, // Finer zoom steps for pinch gestures
     });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
+    let debounceTimeout;
+map.on('zoom', () => {
+    clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(() => {
+        map.eachLayer(layer => {
+            if (layer instanceof L.Polyline) layer.redraw();
+        });
+    }, 100); // 100ms debounce
+});
     const polylineGroup = L.featureGroup().addTo(map);
     return { map, polylineGroup };
 }
