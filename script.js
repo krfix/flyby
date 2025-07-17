@@ -55,7 +55,10 @@ async function processKmlFiles() {
 
 // Initialize the map
 function initializeMap() {
-    const map = L.map('map', { zoomControl: true }); // Remove setView to avoid initial Poland view
+    const map = L.map('map', {
+        zoomControl: true,
+        zoomSnap: 0 // Enable fractional zoom for smoother padding adjustments
+    });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
@@ -107,7 +110,7 @@ function addPolylinesToMap(map, dropdown, polylines, polylineGroup) {
 
     if (polylineGroup.getLayers().length > 0) {
         map.fitBounds(polylineGroup.getBounds(), {
-            padding: [10, 10]
+            padding: [50, 50]
         });
     }
 
