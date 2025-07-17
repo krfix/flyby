@@ -57,7 +57,8 @@ async function processKmlFiles() {
 function initializeMap() {
     const map = L.map('map', {
         zoomControl: true,
-        zoomSnap: 0 // Enable fractional zoom for smoother padding adjustments
+        zoomSnap: 0, // Enable fractional zoom for smoother padding adjustments
+        zoomDelta: 0.35, // Finer zoom steps for pinch gestures    
     });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
