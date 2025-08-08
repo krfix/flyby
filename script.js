@@ -124,7 +124,7 @@ function addPolylinesToMap(map, dropdown, polylines, polylineGroup) {
     }
 
     // Populate dropdown with polyline names
-    polylines.sort().reverse().forEach(polylineData => {
+    polylines.sort((a, b) => b.name.localeCompare(a.name)).forEach(polylineData => {
         const option = document.createElement('option');
         option.value = polylineData.name;
         option.text = polylineData.name;
