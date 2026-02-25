@@ -14,6 +14,8 @@ let kmlFetchAbort = null;
 
 let resizeChartCanvas = null;
 
+let currentChartIndex = 0;
+
 // ===== Utilities =====
 function toRad(deg) { return deg * Math.PI / 180; }
 function toDeg(rad) { return rad * 180 / Math.PI; }
@@ -247,12 +249,26 @@ function setSelectedOverview(name) {
   }
 }
 
+
+
 // ===== KML parsing =====
 function parseKmlToPoints(kmlText) {
   const parser = new DOMParser();
   const xml = parser.parseFromString(kmlText, "text/xml");
 
-  // ---- FR24 format: many Point Placemarks with TimeStamp/when and IconStyle/heading
+  // If the XML parser produced an error document, bail gracefully
+  const parseErr = xml.getElementsByTagName("parsererror");
+  if (parseErr && parseErr.length) return [];
+
+  // Helper: find gx:Track / gx:coord robustly with namespaces
+  const GX_NS = "http://www.google.com/kml/ext/2.2";
+
+  // -------------------------------------------------------------------
+  // 1) FR24 format: many Placemarks each containing:
+  //    <TimeStamp><when>...</when></TimeStamp>
+  //    <Point><coordinates>lon,lat,alt</coordinates></Point>
+  //    optional <Style><IconStyle><heading>...</heading></IconStyle></Style>
+  // -------------------------------------------------------------------
   const placemarks = xml.getElementsByTagName("Placemark");
   const fr24Points = [];
 
@@ -279,7 +295,7 @@ function parseKmlToPoints(kmlText) {
 
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
 
-    // heading in FR24 is usually IconStyle/heading
+    // heading often lives under IconStyle/heading, sometimes under Style/IconStyle/heading
     let hdgDeg = null;
     const iconStyle = pm.getElementsByTagName("IconStyle")[0];
     if (iconStyle) {
@@ -300,24 +316,82 @@ function parseKmlToPoints(kmlText) {
   }
 
   if (fr24Points.length >= 2) {
-    // FR24 is already in time order, but sort defensively if timestamps exist
+    // Sort by time if we have any timestamps
     const hasAnyTime = fr24Points.some(p => Number.isFinite(p.timeMs));
-    if (hasAnyTime) {
-      fr24Points.sort((a, b) => (a.timeMs ?? 0) - (b.timeMs ?? 0));
-    }
+    if (hasAnyTime) fr24Points.sort((a, b) => (a.timeMs ?? 0) - (b.timeMs ?? 0));
     return fr24Points;
   }
 
-  // ---- ADSBexchange / simple KML: LineString coordinates "lon,lat,alt lon,lat,alt ..."
+  // -------------------------------------------------------------------
+  // 2) ADSBexchange / gx:Track format:
+  //    <gx:Track> ... <when>..</when> ... <gx:coord>lon lat alt</gx:coord> ...
+  //    NOTE: namespace-safe lookup
+  // -------------------------------------------------------------------
+  const trackNodes = xml.getElementsByTagNameNS
+    ? xml.getElementsByTagNameNS(GX_NS, "Track")
+    : xml.getElementsByTagName("gx:Track");
+
+  if (trackNodes && trackNodes.length > 0) {
+    const allPoints = [];
+
+    for (let t = 0; t < trackNodes.length; t++) {
+      const tr = trackNodes[t];
+
+      // <when> is in KML, not gx namespace
+      const whenNodes = tr.getElementsByTagName("when");
+
+      // <gx:coord> is gx namespace
+      const coordNodes = tr.getElementsByTagNameNS
+        ? tr.getElementsByTagNameNS(GX_NS, "coord")
+        : tr.getElementsByTagName("gx:coord");
+
+      const n = Math.min(whenNodes.length, coordNodes.length);
+
+      for (let i = 0; i < n; i++) {
+        const timeMs = safeParseTimeMs((whenNodes[i].textContent || "").trim());
+
+        const parts = (coordNodes[i].textContent || "").trim().split(/\s+/); // lon lat alt
+        if (parts.length < 2) continue;
+
+        const lon = Number(parts[0]);
+        const lat = Number(parts[1]);
+        const altM = parts.length >= 3 ? Number(parts[2]) : null;
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+        allPoints.push({
+          lat,
+          lng: lon,
+          altM: Number.isFinite(altM) ? altM : null,
+          timeMs: Number.isFinite(timeMs) ? timeMs : null,
+          hdgDeg: null
+        });
+      }
+    }
+
+    if (allPoints.length >= 2) {
+      // Sort by time if present (some files have duplicates)
+      const hasAnyTime = allPoints.some(p => Number.isFinite(p.timeMs));
+      if (hasAnyTime) allPoints.sort((a, b) => (a.timeMs ?? 0) - (b.timeMs ?? 0));
+      return allPoints;
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // 3) Generic LineString fallback:
+  //    <LineString><coordinates>lon,lat,alt lon,lat,alt ...</coordinates></LineString>
+  // -------------------------------------------------------------------
   const lineNodes = xml.getElementsByTagName("LineString");
   const pts = [];
+
   for (let l = 0; l < lineNodes.length; l++) {
     const coordNodes = lineNodes[l].getElementsByTagName("coordinates");
     if (!coordNodes || coordNodes.length === 0) continue;
 
     const text = (coordNodes[0].textContent || "").trim();
-    const tuples = text.split(/\s+/);
+    if (!text) continue;
 
+    const tuples = text.split(/\s+/);
     for (const tup of tuples) {
       const p = tup.split(",");
       if (p.length < 2) continue;
@@ -340,7 +414,6 @@ function parseKmlToPoints(kmlText) {
 
   return pts;
 }
-
 function ema(values, alpha = 0.2) {
   const out = new Array(values.length).fill(null);
   let prev = null;
@@ -463,7 +536,6 @@ function drawChart() {
   const ctx = canvas.getContext("2d");
   const w = canvas.width;
   const h = canvas.height;
-
   ctx.clearRect(0, 0, w, h);
   if (!currentFlight) return;
 
@@ -613,6 +685,21 @@ if (spdTicks.length) {
     }
     ctx.stroke();
   }
+
+// ---- Vertical pointer (current scrub position)
+if (currentFlight && Number.isFinite(currentChartIndex)) {
+  const i = Math.min(currentChartIndex, n - 1);
+  const x = xFor(i);
+
+  ctx.strokeStyle = "#1565C0";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x, padT);
+  ctx.lineTo(x, padT + ph);
+  ctx.stroke();
+  
+}
+
 }
 
 // ===== Scrubber/UI update =====
@@ -625,6 +712,8 @@ function setScrubberMax(maxIdx) {
 
 function updateUiForIndex(idx) {
   if (!currentFlight) return;
+
+currentChartIndex = idx;  
 
   const p = currentFlight.points[idx];
   const altFt = currentFlight.altFt[idx];
