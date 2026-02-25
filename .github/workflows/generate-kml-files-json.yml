@@ -51,6 +51,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add kml/*.kml kml_files.json kml_polylines.json
+          git add -A kml
+          git add kml_files.json kml_polylines.json
           git commit -m "Normalize KML names and update JSON files" || echo "Nothing to commit"
-          git push
+          git push        
