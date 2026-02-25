@@ -12,6 +12,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.11
+
+      # 1) Rename KMLs FIRST (run inside /kml so your script finds *.kml)
+      - name: Rename KML files
+        working-directory: kml
+        run: python3 rename_kml.py
+
+      # 2) Generate kml_files.json AFTER rename
       - name: Generate kml_files.json
         run: |
           echo "[" > kml_files.json
@@ -23,18 +34,15 @@ jobs:
           sed -i '$ s/,$//' kml_files.json
           echo "]" >> kml_files.json
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.11
-
+      # 3) Generate polylines AFTER rename (your converter reads kml/*.kml)
       - name: Generate kml_polylines.json
         run: python3 scripts/convert_kmls_to_json.py
 
+      # 4) Commit renamed KMLs + JSON outputs
       - name: Commit changes locally
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add kml_files.json kml_polylines.json
-          git commit -m "Update KML JSON files"
+          git add kml/*.kml kml_files.json kml_polylines.json
+          git commit -m "Normalize KML names and update JSON files" || echo "Nothing to commit"
           git push
