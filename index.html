@@ -1,31 +1,165 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>flyby</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
-  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
-  <link rel="manifest" href="icons/site.webmanifest">
-  <link rel="mask-icon" href="icons/safari-pinned-tab.svg" color="#5bbad5">
-  <meta name="msapplication-TileColor" content="#da532c">
-  <meta name="theme-color" content="#ffffff">    
-  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Flight KML Viewer</title>
+
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
   <style>
-    html, body, #map {
-      height: 100%;
-      margin: 0;
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100%; width: 100%; }
+
+    /* Bottom sheet panel */
+    #flight-panel {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      z-index: 2000;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      font-family: Arial, sans-serif;
+      display: none;
+      backdrop-filter: blur(6px);
+    }
+
+    #flight-panel .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    #flight-title { font-weight: 700; font-size: 14px; }
+    #flight-sub { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+
+    /* 4 stats like FR24 */
+    #flight-stats {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      font-size: 12px;
+    }
+
+    .stat {
+      background: rgba(0,0,0,0.04);
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+    .stat .k { opacity: 0.7; font-size: 11px; }
+    .stat .v { font-weight: 700; margin-top: 2px; }
+
+    #chart-wrap { margin-top: 10px; }
+    #chart {
+      width: 100%;
+      height: 160px;
+      display: block;
+      background: rgba(0,0,0,0.02);
+      border-radius: 10px;
+    }
+
+    #scrub-wrap {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #scrubber { width: 100%; }
+
+    #panel-close {
+      border: none;
+      background: rgba(0,0,0,0.06);
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* Legend */
+    #legend {
+      margin-top: 8px;
+      font-size: 11px;
+      opacity: 0.75;
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 99px;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    /* Responsive: stack stats on narrow screens */
+    @media (max-width: 700px) {
+      #flight-stats { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
+
 <body>
-<div id="map"></div>
-<script>
-  const script = document.createElement("script");
-  script.src = "script.js?v=" + new Date().getTime(); // unique each reload
-  document.head.appendChild(script);
-</script>
+  <div id="map"></div>
+
+  <div id="flight-panel">
+    <div class="row">
+      <div>
+        <div id="flight-title"></div>
+        <div id="flight-sub"></div>
+      </div>
+      <button id="panel-close">Close</button>
+    </div>
+
+    <div id="flight-stats">
+      <div class="stat">
+        <div class="k">Time (UTC)</div>
+        <div class="v" id="stat-time">—</div>
+      </div>
+      <div class="stat">
+        <div class="k">HDG</div>
+        <div class="v" id="stat-hdg">—</div>
+      </div>
+      <div class="stat">
+        <div class="k">Altitude</div>
+        <div class="v" id="stat-alt">—</div>
+      </div>
+      <div class="stat">
+        <div class="k">Groundspeed</div>
+        <div class="v" id="stat-gs">—</div>
+      </div>
+    </div>
+
+    <div id="chart-wrap">
+      <canvas id="chart" width="900" height="320"></canvas>
+      <div id="legend">
+        <span><span class="dot" style="background:#2E7D32;"></span>Altitude</span>
+        <span><span class="dot" style="background:#1565C0;"></span>Speed</span>
+      </div>
+    </div>
+
+    <div id="scrub-wrap">
+      <input id="scrubber" type="range" min="0" max="0" value="0" step="1"/>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
