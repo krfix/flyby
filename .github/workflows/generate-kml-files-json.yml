@@ -22,6 +22,14 @@ jobs:
         working-directory: kml
         run: python3 rename_kml.py
 
+      - name: Debug after rename
+        run: |
+          echo "Files in kml/:"
+          ls -la kml
+          echo ""
+          echo "Git status:"
+          git status --porcelain
+
       # 2) Generate kml_files.json AFTER rename
       - name: Generate kml_files.json
         run: |
