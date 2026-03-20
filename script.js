@@ -271,16 +271,18 @@ function addOverviewPolylines(items) {
 }
 
 function setSelectedOverview(name) {
-    if (!name || name === "all") {
-      for (const p of polylinesIndex) {
-        p.polyline.setStyle({ color: "#0000FF", weight: 2, opacity: 0.6 });
-        if (!map.hasLayer(p.polyline)) p.polyline.addTo(allFlightsLayer);
-      }
-
-      const totalKm = computeTotalDistanceKm(polylinesIndex);
-      setDistanceBox(`Total distance: ${totalKm.toFixed(1)} km`);
-      return;
+  if (!name || name === "all") {
+    for (const p of polylinesIndex) {
+      p.polyline.setStyle({ color: "#0000FF", weight: 2, opacity: 0.6 });
+      if (!map.hasLayer(p.polyline)) p.polyline.addTo(allFlightsLayer);
     }
+
+    const totalKm = computeTotalDistanceKm(polylinesIndex);
+    setDistanceBox(`Total distance: ${totalKm.toFixed(1)} km`);
+
+    fitBoundsVisible(allFlightsLayer.getBounds());
+    return;
+  }
 
   let selected = null;
   for (const p of polylinesIndex) {
@@ -795,13 +797,15 @@ async function selectFlight(name) {
     return;
   }
 
-    showPanel();
+   showPanel();
 
-    requestAnimationFrame(() => {
-      map.invalidateSize();
-      if (typeof resizeChartCanvas === "function") resizeChartCanvas();
-      setSelectedOverview(name);
-    });
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    map.invalidateSize();
+    if (typeof resizeChartCanvas === "function") resizeChartCanvas();
+    setSelectedOverview(name);
+  });
+});
 
   setPanelHeader(name, "Loading KML…");
   setStats({ timeMs: null, hdgDeg: null, altFt: null, speedKts: null });
