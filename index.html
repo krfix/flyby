@@ -220,6 +220,76 @@
       width: 100%;
       accent-color: var(--primary);
     }
+/* =========================
+   ZOOM = SAME GLASS AS UI
+========================= */
+
+/* container = SAME as .glass */
+
+.leaflet-bar {
+  border: none !important;
+  background: transparent;
+  box-shadow:
+  0 6px 20px rgba(0,0,0,0.1),
+  inset 0 1px 0 rgba(255,255,255,0.4),
+  inset 0 -1px 0 rgba(255,255,255,0.1);
+}
+
+.leaflet-control-zoom {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.6),
+    rgba(255,255,255,0.2)
+  );
+
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+
+  border-radius: 14px; /* 🔥 EXACT same as your UI */
+  border: none;
+
+}
+
+/* buttons = transparent content inside glass */
+.leaflet-control-zoom a {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none;
+
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 10px; /* inner softness like your controls */
+
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+/* hover = same feel */
+.leaflet-control-zoom a:hover {
+  background: rgba(255,255,255,0.3);
+  transform: translateY(-1px);
+}
+
+/* remove default divider */
+.leaflet-control-zoom-in {
+  border-bottom: none !important;
+}
 
     /* =========================
        MOBILE LANDSCAPE
@@ -263,8 +333,8 @@
     <div id="chart-wrap">
       <canvas id="chart"></canvas>
       <div id="legend">
-        <span><span class="dot" style="background:#2563EB;"></span>Alt</span>
-        <span><span class="dot" style="background:#F59E0B;"></span>Spd</span>
+        <span><span class="dot" style="background:#2E7D32;"></span>Alt</span>
+        <span><span class="dot" style="background:#1565C0;"></span>Spd</span>
       </div>
     </div>
 
