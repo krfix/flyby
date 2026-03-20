@@ -44,7 +44,9 @@ function bearingDeg(a, b) {
   return brng;
 }
 
-function metersToNm(m) { return m / 1852; }
+
+
+
 function metersToKm(m) { return m / 1000; }
 function computePolylineDistanceKm(coords) {
   let meters = 0;
@@ -94,11 +96,7 @@ function fmtHdg(deg) {
   return `${Math.round(deg)}°`;
 }
 
-function computePolylineDistanceNm(coords) {
-  let meters = 0;
-  for (let i = 1; i < coords.length; i++) meters += haversineMeters(coords[i - 1], coords[i]);
-  return metersToNm(meters);
-}
+
 
 // ===== DOM helpers =====
 function el(id) { return document.getElementById(id); }
@@ -106,6 +104,19 @@ function showPanel() {
   const el = document.getElementById("flight-panel");
   el.style.display = "block";
   requestAnimationFrame(() => el.classList.add("show"));
+}
+
+
+function findFirstValidTimeSegment(timeMs) {
+  for (let i = 0; i < timeMs.length - 1; i++) {
+    const t1 = timeMs[i];
+    const t2 = timeMs[i + 1];
+
+    if (Number.isFinite(t1) && Number.isFinite(t2) && t2 >= t1) {
+      return { i, f: 0 };
+    }
+  }
+  return null;
 }
 
 function hidePanel() {
@@ -124,8 +135,8 @@ function getMapFitOptions() {
 
   if (isLandscapePhone) {
     return {
-      paddingTopLeft: [panelWidth + 20, 20],
-      paddingBottomRight: [40, 20],
+      paddingTopLeft: [40, 20],
+      paddingBottomRight: [panelWidth + 20, 20], // 🔥 moved to right
       maxZoom: 12
     };
   }
@@ -175,10 +186,8 @@ map.setView([48.0, 16.0], 5);
   // Dropdown control
 const DropdownControl = L.Control.extend({
   onAdd: function () {
-    const div = L.DomUtil.create("div", "map-control row-control");
+    const div = L.DomUtil.create("div", "glass glass-control");
 
-    const label = L.DomUtil.create("span", "map-inline-label", div);
-    label.textContent = "Flights";
 
     const select = L.DomUtil.create("select", "map-select inline", div);
     select.id = "flight-select";
@@ -194,7 +203,7 @@ map.addControl(new DropdownControl({ position: "topright" }));
   // Distance box
 const DistanceControl = L.Control.extend({
   onAdd: function () {
-    const div = L.DomUtil.create("div", "map-control distance-box");
+    const div = L.DomUtil.create("div", "glass glass-control");
     div.id = "distance-box";
     div.style.display = "none";
     return div;
@@ -213,21 +222,13 @@ function setDistanceBox(text) {
     return;
   }
 
-  const isTotal = text.toLowerCase().includes("total");
   const value = text.replace(/.*: /, "");
 
   box.innerHTML = `
-    <div class="distance-inline">
-      <span class="distance-label-inline">
-        ${isTotal ? "Total" : "Distance"}
-      </span>
-      <span class="distance-value-inline">
-        ${value}
-      </span>
-    </div>
+    <span class="map-value">${value}</span>
   `;
 
-  box.style.display = "block";
+  box.style.display = "flex";
 }
 
 // ===== Load lightweight polylines =====
@@ -274,8 +275,11 @@ function addOverviewPolylines(items) {
   }
 
   if (polylinesIndex.length > 0) {
-    map.fitBounds(allFlightsLayer.getBounds(), { padding: [40, 40] });
-  }
+const bounds = allFlightsLayer.getBounds();
+
+
+
+fitBoundsVisible(bounds);}
 }
 
 function setSelectedOverview(name) {
@@ -513,7 +517,21 @@ function windowedSpeedKts(points, halfWindow = 3) {
 }
 
 function computeSeries(points) {
-  const timeMs = points.map(p => p.timeMs);
+let timeMs = points.map(p => p.timeMs);
+
+// 🔥 FIX: forward-fill missing timestamps
+for (let i = 1; i < timeMs.length; i++) {
+  if (!Number.isFinite(timeMs[i])) {
+    timeMs[i] = timeMs[i - 1];
+  }
+}
+
+// 🔥 FIX: backward-fill start if needed
+for (let i = timeMs.length - 2; i >= 0; i--) {
+  if (!Number.isFinite(timeMs[i])) {
+    timeMs[i] = timeMs[i + 1];
+  }
+}
   let altFt = points.map(p => (Number.isFinite(p.altM) ? metersToFeet(p.altM) : null));
   let hdgDeg = points.map(p => (Number.isFinite(p.hdgDeg) ? p.hdgDeg : null));
 
@@ -549,6 +567,7 @@ async function loadSelectedKml(name) {
 function renderFullKmlOverlay(points) {
   selectedFullKmlLayer.clearLayers();
   selectedMarkerLayer.clearLayers();
+  marker = null;
 
   const latlngs = points.map(p => [p.lat, p.lng]);
   const pl = L.polyline(latlngs, { color: "#FF0000", weight: 4, opacity: 1.0 });
@@ -556,18 +575,21 @@ function renderFullKmlOverlay(points) {
 
   fitBoundsVisible(pl.getBounds());}
 
-function ensureMarkerAt(index) {
-  selectedMarkerLayer.clearLayers();
-  if (!currentFlight || !currentFlight.points || currentFlight.points.length === 0) return;
+let marker = null;
 
-  const p = currentFlight.points[index];
-  const marker = L.circleMarker([p.lat, p.lng], {
-    radius: 7,
-    weight: 2,
-    opacity: 1,
-    fillOpacity: 0.8
-  });
-  marker.addTo(selectedMarkerLayer);
+function ensureMarkerAt(p) {
+  if (!p) return;
+
+  if (!marker) {
+    marker = L.circleMarker([p.lat, p.lng], {
+      radius: 7,
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.8
+    }).addTo(selectedMarkerLayer);
+  } else {
+    marker.setLatLng([p.lat, p.lng]);
+  }
 }
 
 // ===== Chart =====
@@ -603,6 +625,12 @@ function drawChart() {
   if (!currentFlight) return;
 
   const n = currentFlight.points.length;
+  const timeMs = currentFlight.timeMs;
+  const validTimes = timeMs.filter(t => Number.isFinite(t));
+
+  const useTimeScale = validTimes.length >= 2;
+  const minTime = validTimes[0];
+  const maxTime = validTimes[validTimes.length - 1];
   if (n < 2) return;
 
   const altFt = currentFlight.altFt;       // altitude in feet (may contain null)
@@ -619,7 +647,15 @@ function drawChart() {
   const pw = w - padL - padR;
   const ph = h - padT - padB;
 
-  const xFor = (i) => padL + (pw * (i / (n - 1)));
+const xFor = (i) => {
+  if (useTimeScale) {
+    const t = timeMs[i];
+    if (!Number.isFinite(t)) return null;
+    return padL + pw * ((t - minTime) / (maxTime - minTime));
+  } else {
+    return padL + (pw * (i / (n - 1)));
+  }
+};
 
   // Axis ranges
   const spdMin = hasSpd ? Math.min(...spdVals) : 0;
@@ -725,6 +761,7 @@ if (spdTicks.length) {
       const v = altFt[i];
       if (!Number.isFinite(v)) continue;
       const x = xFor(i);
+      if (x === null) continue;
       const y = yAlt(v);
       if (!started) { ctx.moveTo(x, y); started = true; }
       else ctx.lineTo(x, y);
@@ -741,8 +778,9 @@ if (spdTicks.length) {
     for (let i = 0; i < n; i++) {
       const v = spdKts[i];
       if (!Number.isFinite(v)) continue;
-      const x = xFor(i);
-      const y = ySpd(v);
+    const x = xFor(i);
+    if (x === null) continue;
+    const y = ySpd(v);
       if (!started) { ctx.moveTo(x, y); started = true; }
       else ctx.lineTo(x, y);
     }
@@ -751,8 +789,20 @@ if (spdTicks.length) {
 
 // ---- Vertical pointer (current scrub position)
 if (currentFlight && Number.isFinite(currentChartIndex)) {
-  const i = Math.min(currentChartIndex, n - 1);
-  const x = xFor(i);
+  const i = Math.floor(currentChartIndex);
+
+  let x;
+
+  if (useTimeScale) {
+    const tMs = currentFlight.timeMs[i];
+    if (!Number.isFinite(tMs)) {
+      x = padL + (pw * (i / (n - 1))); // fallback
+    } else {
+      x = padL + pw * ((tMs - minTime) / (maxTime - minTime));
+    }
+  } else {
+    x = padL + (pw * (i / (n - 1)));
+}
 
   ctx.strokeStyle = "#1565C0";
   ctx.lineWidth = 2;
@@ -760,37 +810,146 @@ if (currentFlight && Number.isFinite(currentChartIndex)) {
   ctx.moveTo(x, padT);
   ctx.lineTo(x, padT + ph);
   ctx.stroke();
-  
 }
 
 }
 
-// ===== Scrubber/UI update =====
-function setScrubberMax(maxIdx) {
+function setScrubberRange(timeMsArray) {
   const s = el("scrubber");
-  s.min = "0";
-  s.max = String(Math.max(0, maxIdx));
-  s.value = "0";
+
+  const validTimes = timeMsArray.filter(t => Number.isFinite(t));
+
+  if (validTimes.length < 2) {
+    s.min = "0";
+    s.max = "1";
+    s.step = "1";
+    s.value = "0";
+    return;
+  }
+
+  const minT = validTimes[0];
+  const maxT = validTimes[validTimes.length - 1];
+
+  s.min = String(minT);
+  s.max = String(maxT);
+  s.step = "100"; // 0.1 second resolution
+  s.value = String(minT);
 }
 
-function updateUiForIndex(idx) {
+function interpolateHeading(arr, t) {
+  const i = Math.floor(t);
+  const f = t - i;
+
+  if (i < 0) return arr[0];
+  if (i >= arr.length - 1) return arr[arr.length - 1];
+
+  let a = arr[i];
+  let b = arr[i + 1];
+
+  if (!Number.isFinite(a)) return b;
+  if (!Number.isFinite(b)) return a;
+
+  let diff = b - a;
+
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+
+  return (a + diff * f + 360) % 360;
+}
+
+function findSegmentByTime(timeMs, t) {
+  for (let i = 0; i < timeMs.length - 1; i++) {
+    const a = timeMs[i];
+    const b = timeMs[i + 1];
+
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+
+    if (t >= a && t <= b) {
+      const dt = b - a;
+      const f = dt === 0 ? 0 : (t - a) / dt;
+      return { i, f };
+    }
+  }
+
+  return null;
+}
+
+
+
+function updateUiForTime(t) {
   if (!currentFlight) return;
 
-currentChartIndex = idx;  
+const seg = findSegmentByTime(currentFlight.timeMs, t);
+if (!seg) {
+  // 🔥 fallback to index-based rendering
+  currentChartIndex = 0;
 
-  const p = currentFlight.points[idx];
-  const altFt = currentFlight.altFt[idx];
-  const speedKts = currentFlight.speedKts[idx];
-  const hdgDeg = currentFlight.hdgDeg[idx];
+  const p = currentFlight.points[0];
 
   setStats({
-    timeMs: p.timeMs,
-    hdgDeg: Number.isFinite(hdgDeg) ? hdgDeg : null,
-    altFt: Number.isFinite(altFt) ? altFt : null,
-    speedKts: Number.isFinite(speedKts) ? speedKts : null
+    timeMs: p.timeMs ?? null,
+    hdgDeg: currentFlight.hdgDeg?.[0] ?? null,
+    altFt: currentFlight.altFt?.[0] ?? null,
+    speedKts: currentFlight.speedKts?.[0] ?? null
   });
 
-  ensureMarkerAt(idx);
+  ensureMarkerAt(p);
+  drawChart();
+  return;
+}
+  const { i, f } = seg;
+
+  currentChartIndex = i + f;
+
+  const pA = currentFlight.points[i];
+  const pB = currentFlight.points[i + 1];
+
+  const p = {
+    lat: pA.lat + (pB.lat - pA.lat) * f,
+    lng: pA.lng + (pB.lng - pA.lng) * f,
+    timeMs: t
+  };
+
+function getNearestValid(arr, i) {
+  // check current
+  if (Number.isFinite(arr[i])) return arr[i];
+
+  // forward search
+  for (let j = i + 1; j < arr.length; j++) {
+    if (Number.isFinite(arr[j])) return arr[j];
+  }
+
+  // backward search
+  for (let j = i - 1; j >= 0; j--) {
+    if (Number.isFinite(arr[j])) return arr[j];
+  }
+
+  return null;
+}
+
+const altFt =
+  Number.isFinite(currentFlight.altFt[i]) && Number.isFinite(currentFlight.altFt[i + 1])
+    ? currentFlight.altFt[i] + (currentFlight.altFt[i + 1] - currentFlight.altFt[i]) * f
+    : getNearestValid(currentFlight.altFt, i);
+
+const speedKts =
+  Number.isFinite(currentFlight.speedKts[i]) && Number.isFinite(currentFlight.speedKts[i + 1])
+    ? currentFlight.speedKts[i] + (currentFlight.speedKts[i + 1] - currentFlight.speedKts[i]) * f
+    : getNearestValid(currentFlight.speedKts, i);
+
+let hdgDeg = interpolateHeading(currentFlight.hdgDeg, i + f);
+
+if (!Number.isFinite(hdgDeg)) {
+  hdgDeg = getNearestValid(currentFlight.hdgDeg, i);
+}
+  setStats({
+    timeMs: t,
+    hdgDeg,
+    altFt,
+    speedKts
+  });
+
+  ensureMarkerAt(p);
   drawChart();
 }
 
@@ -822,9 +981,10 @@ requestAnimationFrame(() => {
     const kmlText = await loadSelectedKml(name);
     const points = parseKmlToPoints(kmlText);
 
-    if (!points || points.length < 2) {
-      setPanelHeader(name, "No track points found in KML");
-      setScrubberMax(0);
+   if (!points || points.length < 2) {
+  console.warn("Parsed KML but no usable points:", name);
+  setPanelHeader(name, "No track points found in KML");
+      setScrubberRange([]);
       return;
     }
 
@@ -839,13 +999,31 @@ requestAnimationFrame(() => {
       hasTime ? `Loaded ${points.length} points (time OK)` : `Loaded ${points.length} points (no time data)`
     );
 
-    setScrubberMax(points.length - 1);
-    updateUiForIndex(0);
+setScrubberRange(timeMs);
 
+const seg = findFirstValidTimeSegment(timeMs);
+if (seg) {
+  currentChartIndex = seg.i;
+  updateUiForTime(timeMs[seg.i]);
+} else {
+  currentChartIndex = 0;
+
+  const p = currentFlight.points[0];
+
+  setStats({
+    timeMs: currentFlight.timeMs?.[0] ?? null,
+    hdgDeg: currentFlight.hdgDeg?.[0] ?? null,
+    altFt: currentFlight.altFt?.[0] ?? null,
+    speedKts: currentFlight.speedKts?.[0] ?? null
+  });
+
+  ensureMarkerAt(p);
+  drawChart();
+}
   } catch (e) {
     if (e && e.name === "AbortError") return;
     console.error(e);
-    setPanelHeader(name, "Failed to load KML");
+    setPanelHeader(name, " Error processing KML");
   }
 }
 
@@ -855,6 +1033,7 @@ function wirePanelControls() {
     hidePanel();
     selectedFullKmlLayer.clearLayers();
     selectedMarkerLayer.clearLayers();
+    marker = null;
 
     const sel = el("flight-select");
     if (sel) sel.value = "all";
@@ -862,9 +1041,9 @@ function wirePanelControls() {
   });
 
   el("scrubber").addEventListener("input", (e) => {
-    const idx = Number(e.target.value);
-    if (!Number.isFinite(idx)) return;
-    updateUiForIndex(idx);
+    const t = Number(e.target.value);
+    if (!Number.isFinite(t)) return;
+    updateUiForTime(t);
   });
 
   // HiDPI canvas

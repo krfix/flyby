@@ -6,37 +6,24 @@
   <title>Flyby</title>
 
   <!-- Icons -->
-  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="icon" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <link rel="manifest" href="/icons/site.webmanifest">
 
-  <!-- Font (modern) -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
-    /* =========================
-       GLOBAL SYSTEM
-    ========================== */
     :root {
-      --bg: rgba(255,255,255,0.85);
-      --border: rgba(0,0,0,0.06);
       --text: #111827;
       --muted: #6B7280;
       --primary: #2563EB;
-      --accent: #F59E0B;
-
       --radius: 14px;
-      --shadow: 0 10px 30px rgba(0,0,0,0.12);
-    }
-
-    * {
-      box-sizing: border-box;
-      transition: all 0.2s ease;
     }
 
     html, body {
@@ -44,7 +31,6 @@
       margin: 0;
       font-family: 'Inter', -apple-system, sans-serif;
       color: var(--text);
-      background: #f9fafb;
     }
 
     #map {
@@ -53,29 +39,76 @@
     }
 
     /* =========================
-       SHARED GLASS COMPONENT
+       GLASS SYSTEM
     ========================== */
-  .glass {
-    background: linear-gradient(
-      135deg,
-      rgba(255,255,255,0.6),
-      rgba(255,255,255,0.2)
-    );
+    .glass {
+      background: linear-gradient(
+        135deg,
+        rgba(255,255,255,0.6),
+        rgba(255,255,255,0.2)
+      );
 
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
+      backdrop-filter: blur(12px) saturate(140%);
+      -webkit-backdrop-filter: blur(12px) saturate(140%);
 
-  border-radius: var(--radius);
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,0.25);
 
-  border: 1px solid rgba(255,255,255,0.25);
+      box-shadow:
+        0 6px 20px rgba(0,0,0,0.1),
+        inset 0 1px 0 rgba(255,255,255,0.35);
+    }
 
-  box-shadow:
-    0 8px 32px rgba(0,0,0,0.12),
-    inset 0 1px 0 rgba(255,255,255,0.4);
+    .glass,
+    .glass-control,
+    #panel-close {
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    /* =========================
+       MAP CONTROLS
+    ========================== */
+    .glass-control {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      gap: 6px;
+      padding: 6px 10px;
+      min-height: 30px;
+    }
+
+    .map-value {
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: 0.2px;
+    }
+
+    .map-select {
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 12px;
+
+      height: 24px;
+      padding: 0;
+
+      outline: none;
+      cursor: pointer;
+      text-align: center;
+
+      max-width: 180px;
+    }
+
+    /* stack spacing */
+.leaflet-top.leaflet-right {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
 }
 
     /* =========================
-       PANEL (MAIN UI)
+       PANEL
     ========================== */
     #flight-panel {
       position: absolute;
@@ -83,6 +116,8 @@
       right: 12px;
       bottom: 12px;
       z-index: 2000;
+      margin-right: 0;
+      margin-top: 4px;
 
       padding: 14px;
       display: none;
@@ -96,7 +131,6 @@
       opacity: 1;
     }
 
-    /* HEADER */
     .panel-header {
       display: flex;
       justify-content: space-between;
@@ -106,13 +140,12 @@
 
     #flight-title {
       font-weight: 600;
-      font-size: 15px;
+      font-size: 14px;
     }
 
     #flight-sub {
       font-size: 12px;
       color: var(--muted);
-      margin-top: 2px;
     }
 
     #panel-close {
@@ -121,21 +154,16 @@
       border-radius: 10px;
       padding: 6px 10px;
       cursor: pointer;
-      font-weight: 500;
-    }
-
-    #panel-close:hover {
-      background: rgba(0,0,0,0.08);
     }
 
     /* =========================
-       STATS (minimal version)
+       STATS (ONE LINE)
     ========================== */
     #flight-stats {
       margin-top: 10px;
       display: flex;
       justify-content: space-between;
-      font-size: 12px;
+      font-size: 10px;
       gap: 10px;
     }
 
@@ -156,13 +184,12 @@
        CHART
     ========================== */
     #chart-wrap {
-      margin-top: 12px;
+      margin-top: 10px;
     }
 
     #chart {
       width: 100%;
       height: 140px;
-      border-radius: 10px;
       background: transparent;
     }
 
@@ -195,110 +222,21 @@
     }
 
     /* =========================
-       LANDSCAPE MODE (PHONE)
+       MOBILE LANDSCAPE
     ========================== */
-    @media (orientation: landscape) and (max-height: 500px) {
-      #flight-panel {
-        top: 12px;
-        bottom: 12px;
-        left: 12px;
-        right: auto;
-        width: min(360px, 40vw);
-        overflow-y: auto;
-      }
+@media (orientation: landscape) and (max-height: 500px) {
 
-      #chart {
-        height: 110px;
-      }
-    }
-/* =========================
-   MAP CONTROLS (TOP RIGHT)
-========================= */
+  #flight-panel {
+    top: 60px;                /* 🔥 below controls */
+    right: 10px;
+    left: auto;               /* 🔥 move from left → right */
 
-.map-control {
-  background: var(--bg);
-  backdrop-filter: blur(12px);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
-  border: 1px solid var(--border);
-  padding: 10px;
-  font-size: 12px;
-  min-width: 105px;
-}
+    width: min(320px, 40vw);
+    padding: 10px;
 
-/* label */
-.map-control-title {
-  font-size: 11px;
-  color: var(--muted);
-  margin-bottom: 6px;
-  font-weight: 500;
-}
-
-/* dropdown */
-.map-select {
-  width: 100%;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0);
-  font-family: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.map-select:focus {
-  outline: none;
-  border-color: var(--primary);
-}
-
-/* distance box */
-.distance-box {
-  margin-top: 8px;
-}
-
-.distance-label {
-  font-size: 10px;
-  color: var(--muted);
-}
-
-.distance-value {
-  font-weight: 600;
-  font-size: 13px;
-  margin-top: 2px;
-}
-
-.row-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.map-inline-label {
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.map-select.inline {
-  flex: 1;
-  font-size: 12px;
-  height: 28px;
-}
-
-.distance-inline {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.distance-label-inline {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.distance-value-inline {
-  font-size: 12px;
-  font-weight: 600;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
 }
   </style>
 </head>
@@ -317,21 +255,21 @@
 
     <div id="flight-stats">
       <div class="stat"><span class="k">Time</span><span class="v" id="stat-time">—</span></div>
-      <div class="stat"><span class="k">Heading</span><span class="v" id="stat-hdg">—</span></div>
-      <div class="stat"><span class="k">Altitude</span><span class="v" id="stat-alt">—</span></div>
-      <div class="stat"><span class="k">Speed</span><span class="v" id="stat-gs">—</span></div>
+      <div class="stat"><span class="k">HDG</span><span class="v" id="stat-hdg">—</span></div>
+      <div class="stat"><span class="k">Alt</span><span class="v" id="stat-alt">—</span></div>
+      <div class="stat"><span class="k">Spd</span><span class="v" id="stat-gs">—</span></div>
     </div>
 
     <div id="chart-wrap">
       <canvas id="chart"></canvas>
       <div id="legend">
-        <span><span class="dot" style="background:#2563EB;"></span>Altitude</span>
-        <span><span class="dot" style="background:#F59E0B;"></span>Speed</span>
+        <span><span class="dot" style="background:#2563EB;"></span>Alt</span>
+        <span><span class="dot" style="background:#F59E0B;"></span>Spd</span>
       </div>
     </div>
 
     <div id="scrub-wrap">
-      <input id="scrubber" type="range" min="0" max="0" value="0" step="1"/>
+      <input id="scrubber" type="range"/>
     </div>
   </div>
 
