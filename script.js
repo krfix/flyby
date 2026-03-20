@@ -174,10 +174,10 @@ map = L.map("map", {
 });
 
 map.setView([48.0, 16.0], 5);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 18,
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
+L.tileLayer("https://api.thunderforest.com/landscape/{z}/{x}/{y}{r}.png?apikey=1a21f57748544094a983aed49dcbf608", {
+  maxZoom: 22,
+  attribution: '&copy; OpenStreetMap contributors &copy; Thunderforest'
+}).addTo(map);
 
   allFlightsLayer = L.featureGroup().addTo(map);
   selectedFullKmlLayer = L.featureGroup().addTo(map);
