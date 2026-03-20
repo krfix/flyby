@@ -102,9 +102,17 @@ function computePolylineDistanceNm(coords) {
 
 // ===== DOM helpers =====
 function el(id) { return document.getElementById(id); }
-function showPanel() { el("flight-panel").style.display = "block"; }
-function hidePanel() { el("flight-panel").style.display = "none"; }
+function showPanel() {
+  const el = document.getElementById("flight-panel");
+  el.style.display = "block";
+  requestAnimationFrame(() => el.classList.add("show"));
+}
 
+function hidePanel() {
+  const el = document.getElementById("flight-panel");
+  el.classList.remove("show");
+  setTimeout(() => el.style.display = "none", 200);
+}
 function getMapFitOptions() {
   const panel = el("flight-panel");
   const panelVisible = panel && panel.style.display !== "none";
@@ -165,60 +173,60 @@ map.setView([48.0, 16.0], 5);
   selectedMarkerLayer = L.featureGroup().addTo(map);
 
   // Dropdown control
-  const DropdownControl = L.Control.extend({
-    onAdd: function () {
-      const div = L.DomUtil.create("div", "leaflet-bar leaflet-control");
-      div.style.background = "rgba(255,255,255,0.95)";
-      div.style.padding = "8px";
-      div.style.borderRadius = "8px";
-      div.style.fontFamily = "Arial, sans-serif";
-      div.style.boxShadow = "0 4px 12px rgba(0,0,0,0.2)";
+const DropdownControl = L.Control.extend({
+  onAdd: function () {
+    const div = L.DomUtil.create("div", "map-control row-control");
 
-      const label = L.DomUtil.create("div", "", div);
-      label.textContent = "Select flight";
-      label.style.fontWeight = "700";
-      label.style.fontSize = "12px";
-      label.style.marginBottom = "6px";
+    const label = L.DomUtil.create("span", "map-inline-label", div);
+    label.textContent = "Flights";
 
-      const select = L.DomUtil.create("select", "", div);
-      select.id = "flight-select";
-      select.style.width = "220px";
+    const select = L.DomUtil.create("select", "map-select inline", div);
+    select.id = "flight-select";
 
-      L.DomEvent.disableClickPropagation(div);
-      L.DomEvent.disableScrollPropagation(div);
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
 
-      return div;
-    }
-  });
-  map.addControl(new DropdownControl({ position: "topright" }));
+    return div;
+  }
+});
+map.addControl(new DropdownControl({ position: "topright" }));
 
   // Distance box
-  const DistanceControl = L.Control.extend({
-    onAdd: function () {
-      const div = L.DomUtil.create("div", "leaflet-bar leaflet-control");
-      div.id = "distance-box";
-      div.style.background = "rgba(255,255,255,0.95)";
-      div.style.padding = "8px";
-      div.style.borderRadius = "8px";
-      div.style.fontFamily = "Arial, sans-serif";
-      div.style.boxShadow = "0 4px 12px rgba(0,0,0,0.2)";
-      div.style.marginTop = "10px";
-      div.style.display = "none";
-      return div;
-    }
-  });
-  map.addControl(new DistanceControl({ position: "topright" }));
+const DistanceControl = L.Control.extend({
+  onAdd: function () {
+    const div = L.DomUtil.create("div", "map-control distance-box");
+    div.id = "distance-box";
+    div.style.display = "none";
+    return div;
+  }
+});
+map.addControl(new DistanceControl({ position: "topright" }));
 }
 
 function setDistanceBox(text) {
   const box = el("distance-box");
   if (!box) return;
+
   if (!text) {
     box.style.display = "none";
-    box.textContent = "";
+    box.innerHTML = "";
     return;
   }
-  box.textContent = text;
+
+  const isTotal = text.toLowerCase().includes("total");
+  const value = text.replace(/.*: /, "");
+
+  box.innerHTML = `
+    <div class="distance-inline">
+      <span class="distance-label-inline">
+        ${isTotal ? "Total" : "Distance"}
+      </span>
+      <span class="distance-value-inline">
+        ${value}
+      </span>
+    </div>
+  `;
+
   box.style.display = "block";
 }
 

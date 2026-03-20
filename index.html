@@ -5,164 +5,300 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Flyby</title>
 
+  <!-- Icons -->
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/android-chrome-192x192.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="/icons/android-chrome-512x512.png">
-  <link rel="mask-icon" href="/icons/safari-pinned-tab.svg" color="#000000">
   <link rel="manifest" href="/icons/site.webmanifest">
 
+  <!-- Font (modern) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <!-- Leaflet -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
-    html, body { height: 100%; margin: 0; }
-    #map { height: 100%; width: 100%; }
+    /* =========================
+       GLOBAL SYSTEM
+    ========================== */
+    :root {
+      --bg: rgba(255,255,255,0.85);
+      --border: rgba(0,0,0,0.06);
+      --text: #111827;
+      --muted: #6B7280;
+      --primary: #2563EB;
+      --accent: #F59E0B;
 
-    /* Bottom sheet panel */
+      --radius: 14px;
+      --shadow: 0 10px 30px rgba(0,0,0,0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: 'Inter', -apple-system, sans-serif;
+      color: var(--text);
+      background: #f9fafb;
+    }
+
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+
+    /* =========================
+       SHARED GLASS COMPONENT
+    ========================== */
+  .glass {
+    background: linear-gradient(
+      135deg,
+      rgba(255,255,255,0.6),
+      rgba(255,255,255,0.2)
+    );
+
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+
+  border-radius: var(--radius);
+
+  border: 1px solid rgba(255,255,255,0.25);
+
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.4);
+}
+
+    /* =========================
+       PANEL (MAIN UI)
+    ========================== */
     #flight-panel {
       position: absolute;
-      left: 10px;
-      right: 10px;
-      bottom: 10px;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
       z-index: 2000;
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 14px;
-      padding: 12px 14px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-      font-family: Arial, sans-serif;
+
+      padding: 14px;
       display: none;
-      backdrop-filter: blur(6px);
+
+      transform: translateY(20px);
+      opacity: 0;
     }
 
-    #flight-panel .row {
+    #flight-panel.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* HEADER */
+    .panel-header {
       display: flex;
-      align-items: center;
       justify-content: space-between;
+      align-items: flex-start;
       gap: 10px;
     }
 
-    #flight-title { font-weight: 700; font-size: 14px; }
-    #flight-sub { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+    #flight-title {
+      font-weight: 600;
+      font-size: 15px;
+    }
 
-    /* 4 stats like FR24 */
-    #flight-stats {
-      margin-top: 10px;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
+    #flight-sub {
       font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
     }
-
-    .stat {
-      background: rgba(0,0,0,0.04);
-      border-radius: 10px;
-      padding: 8px 10px;
-    }
-    .stat .k { opacity: 0.7; font-size: 11px; }
-    .stat .v { font-weight: 700; margin-top: 2px; }
-
-    #chart-wrap { margin-top: 10px; }
-    #chart {
-      width: 100%;
-      height: 160px;
-      display: block;
-      background: rgba(0,0,0,0.02);
-      border-radius: 10px;
-    }
-
-    #scrub-wrap {
-      margin-top: 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    #scrubber { width: 100%; }
 
     #panel-close {
       border: none;
-      background: rgba(0,0,0,0.06);
+      background: rgba(0,0,0,0.05);
       border-radius: 10px;
-      padding: 8px 10px;
+      padding: 6px 10px;
       cursor: pointer;
+      font-weight: 500;
+    }
+
+    #panel-close:hover {
+      background: rgba(0,0,0,0.08);
+    }
+
+    /* =========================
+       STATS (minimal version)
+    ========================== */
+    #flight-stats {
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      gap: 10px;
+    }
+
+    .stat {
+      display: flex;
+      gap: 4px;
+    }
+
+    .stat .k {
+      color: var(--muted);
+    }
+
+    .stat .v {
       font-weight: 600;
     }
 
-    /* Legend */
+    /* =========================
+       CHART
+    ========================== */
+    #chart-wrap {
+      margin-top: 12px;
+    }
+
+    #chart {
+      width: 100%;
+      height: 140px;
+      border-radius: 10px;
+      background: transparent;
+    }
+
     #legend {
-      margin-top: 8px;
+      margin-top: 6px;
       font-size: 11px;
-      opacity: 0.75;
+      color: var(--muted);
       display: flex;
-      gap: 14px;
-      align-items: center;
+      gap: 12px;
     }
+
     .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 99px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
       display: inline-block;
-      margin-right: 6px;
+      margin-right: 4px;
     }
 
-    /* Responsive: stack stats on narrow screens */
-    @media (max-width: 700px) {
-      #flight-stats { grid-template-columns: repeat(2, 1fr); }
+    /* =========================
+       SLIDER
+    ========================== */
+    #scrub-wrap {
+      margin-top: 10px;
     }
+
+    #scrubber {
+      width: 100%;
+      accent-color: var(--primary);
+    }
+
+    /* =========================
+       LANDSCAPE MODE (PHONE)
+    ========================== */
     @media (orientation: landscape) and (max-height: 500px) {
-  #flight-panel {
-    top: 10px;
-    bottom: 10px;
-    left: 10px;
-    right: auto;
-    width: min(40vw, 330px);
-    padding: 10px 12px;
-    overflow-y: auto;
-  }
+      #flight-panel {
+        top: 12px;
+        bottom: 12px;
+        left: 12px;
+        right: auto;
+        width: min(360px, 40vw);
+        overflow-y: auto;
+      }
 
-  #flight-panel .row {
-    align-items: flex-start;
-  }
+      #chart {
+        height: 110px;
+      }
+    }
+/* =========================
+   MAP CONTROLS (TOP RIGHT)
+========================= */
 
-  #flight-stats {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    margin-top: 8px;
-  }
+.map-control {
+  background: var(--bg);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 10px;
+  font-size: 12px;
+  min-width: 105px;
+}
 
-  .stat {
-    padding: 6px 8px;
-  }
+/* label */
+.map-control-title {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
 
-  #chart-wrap {
-    margin-top: 8px;
-  }
+/* dropdown */
+.map-select {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
 
-  #chart {
-    height: 120px;
-  }
+.map-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
 
-  #scrub-wrap {
-    margin-top: 8px;
-  }
+/* distance box */
+.distance-box {
+  margin-top: 8px;
+}
 
-  #legend {
-    margin-top: 6px;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
+.distance-label {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.distance-value {
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.row-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.map-inline-label {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.map-select.inline {
+  flex: 1;
+  font-size: 12px;
+  height: 28px;
+}
+
+.distance-inline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.distance-label-inline {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.distance-value-inline {
+  font-size: 12px;
+  font-weight: 600;
 }
   </style>
 </head>
@@ -170,8 +306,8 @@
 <body>
   <div id="map"></div>
 
-  <div id="flight-panel">
-    <div class="row">
+  <div id="flight-panel" class="glass">
+    <div class="panel-header">
       <div>
         <div id="flight-title"></div>
         <div id="flight-sub"></div>
@@ -180,29 +316,17 @@
     </div>
 
     <div id="flight-stats">
-      <div class="stat">
-        <div class="k">Time (UTC)</div>
-        <div class="v" id="stat-time">—</div>
-      </div>
-      <div class="stat">
-        <div class="k">HDG</div>
-        <div class="v" id="stat-hdg">—</div>
-      </div>
-      <div class="stat">
-        <div class="k">Altitude</div>
-        <div class="v" id="stat-alt">—</div>
-      </div>
-      <div class="stat">
-        <div class="k">Groundspeed</div>
-        <div class="v" id="stat-gs">—</div>
-      </div>
+      <div class="stat"><span class="k">Time</span><span class="v" id="stat-time">—</span></div>
+      <div class="stat"><span class="k">Heading</span><span class="v" id="stat-hdg">—</span></div>
+      <div class="stat"><span class="k">Altitude</span><span class="v" id="stat-alt">—</span></div>
+      <div class="stat"><span class="k">Speed</span><span class="v" id="stat-gs">—</span></div>
     </div>
 
     <div id="chart-wrap">
-      <canvas id="chart" width="900" height="320"></canvas>
+      <canvas id="chart"></canvas>
       <div id="legend">
-        <span><span class="dot" style="background:#2E7D32;"></span>Altitude</span>
-        <span><span class="dot" style="background:#1565C0;"></span>Speed</span>
+        <span><span class="dot" style="background:#2563EB;"></span>Altitude</span>
+        <span><span class="dot" style="background:#F59E0B;"></span>Speed</span>
       </div>
     </div>
 
