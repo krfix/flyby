@@ -45,6 +45,23 @@ function bearingDeg(a, b) {
 }
 
 function metersToNm(m) { return m / 1852; }
+function metersToKm(m) { return m / 1000; }
+function computePolylineDistanceKm(coords) {
+  let meters = 0;
+  for (let i = 1; i < coords.length; i++) {
+    meters += haversineMeters(coords[i - 1], coords[i]);
+  }
+  return metersToKm(meters);
+}
+function computeTotalDistanceKm(polylines) {
+  let total = 0;
+  for (const p of polylines) {
+    if (p.coords && p.coords.length >= 2) {
+      total += computePolylineDistanceKm(p.coords);
+    }
+  }
+  return total;
+}
 function msToKnots(mps) { return mps * 1.9438444924406; }
 function metersToFeet(m) { return m * 3.280839895; }
 
@@ -88,6 +105,27 @@ function el(id) { return document.getElementById(id); }
 function showPanel() { el("flight-panel").style.display = "block"; }
 function hidePanel() { el("flight-panel").style.display = "none"; }
 
+function getMapFitOptions() {
+  const panel = el("flight-panel");
+
+  // If panel is visible, get its real height
+  const panelHeight =
+    panel && panel.style.display !== "none"
+      ? panel.offsetHeight
+      : 0;
+
+  return {
+    paddingTopLeft: [20, 20],
+    paddingBottomRight: [20, panelHeight + 20],
+    maxZoom: 12
+  };
+}
+
+function fitBoundsVisible(bounds) {
+  if (!bounds || !bounds.isValid()) return;
+  map.fitBounds(bounds, getMapFitOptions());
+}
+
 function setPanelHeader(title, subtitle) {
   el("flight-title").textContent = title || "";
   el("flight-sub").textContent = subtitle || "";
@@ -102,8 +140,13 @@ function setStats({ timeMs, hdgDeg, altFt, speedKts }) {
 
 // ===== Map init =====
 function initMap() {
-  map = L.map("map").setView([48.0, 16.0], 5);
+map = L.map("map", {
+  zoomSnap: 0.1,
+  zoomDelta: 0.75,
+  wheelPxPerZoomLevel: 100
+});
 
+map.setView([48.0, 16.0], 5);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
     attribution: '&copy; OpenStreetMap contributors'
@@ -220,14 +263,16 @@ function addOverviewPolylines(items) {
 }
 
 function setSelectedOverview(name) {
-  if (!name || name === "all") {
-    for (const p of polylinesIndex) {
-      p.polyline.setStyle({ color: "#0000FF", weight: 2, opacity: 0.6 });
-      if (!map.hasLayer(p.polyline)) p.polyline.addTo(allFlightsLayer);
+    if (!name || name === "all") {
+      for (const p of polylinesIndex) {
+        p.polyline.setStyle({ color: "#0000FF", weight: 2, opacity: 0.6 });
+        if (!map.hasLayer(p.polyline)) p.polyline.addTo(allFlightsLayer);
+      }
+
+      const totalKm = computeTotalDistanceKm(polylinesIndex);
+      setDistanceBox(`Total distance: ${totalKm.toFixed(1)} km`);
+      return;
     }
-    setDistanceBox(null);
-    return;
-  }
 
   let selected = null;
   for (const p of polylinesIndex) {
@@ -240,13 +285,13 @@ function setSelectedOverview(name) {
     }
   }
 
-  if (selected) {
-    const distNm = computePolylineDistanceNm(selected.coords);
-    setDistanceBox(`Distance: ${distNm.toFixed(1)} nm`);
-    map.fitBounds(selected.polyline.getBounds(), { padding: [40, 40] });
-  } else {
-    setDistanceBox(null);
-  }
+      if (selected) {
+        const distKm = computePolylineDistanceKm(selected.coords);
+        setDistanceBox(`Distance: ${distKm.toFixed(1)} km`);
+        fitBoundsVisible(selected.polyline.getBounds());
+      } else {
+        setDistanceBox(null);
+      }
 }
 
 
@@ -491,8 +536,7 @@ function renderFullKmlOverlay(points) {
   const pl = L.polyline(latlngs, { color: "#FF0000", weight: 4, opacity: 1.0 });
   pl.addTo(selectedFullKmlLayer);
 
-  map.fitBounds(pl.getBounds(), { padding: [40, 40] });
-}
+  fitBoundsVisible(pl.getBounds());}
 
 function ensureMarkerAt(index) {
   selectedMarkerLayer.clearLayers();
@@ -742,13 +786,13 @@ async function selectFlight(name) {
     return;
   }
 
-  setSelectedOverview(name);
-  showPanel();
+    showPanel();
 
-  requestAnimationFrame(() => {
-  map.invalidateSize();
-  if (typeof resizeChartCanvas === "function") resizeChartCanvas();
-});
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+      if (typeof resizeChartCanvas === "function") resizeChartCanvas();
+      setSelectedOverview(name);
+    });
 
   setPanelHeader(name, "Loading KML…");
   setStats({ timeMs: null, hdgDeg: null, altFt: null, speedKts: null });
