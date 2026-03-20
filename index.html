@@ -121,6 +121,49 @@
     @media (max-width: 700px) {
       #flight-stats { grid-template-columns: repeat(2, 1fr); }
     }
+    @media (orientation: landscape) and (max-height: 500px) {
+  #flight-panel {
+    top: 10px;
+    bottom: 10px;
+    left: 10px;
+    right: auto;
+    width: min(40vw, 330px);
+    padding: 10px 12px;
+    overflow-y: auto;
+  }
+
+  #flight-panel .row {
+    align-items: flex-start;
+  }
+
+  #flight-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .stat {
+    padding: 6px 8px;
+  }
+
+  #chart-wrap {
+    margin-top: 8px;
+  }
+
+  #chart {
+    height: 120px;
+  }
+
+  #scrub-wrap {
+    margin-top: 8px;
+  }
+
+  #legend {
+    margin-top: 6px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+}
   </style>
 </head>
 

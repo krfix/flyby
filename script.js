@@ -107,16 +107,24 @@ function hidePanel() { el("flight-panel").style.display = "none"; }
 
 function getMapFitOptions() {
   const panel = el("flight-panel");
+  const panelVisible = panel && panel.style.display !== "none";
+  const panelWidth = panelVisible ? panel.offsetWidth : 0;
+  const panelHeight = panelVisible ? panel.offsetHeight : 0;
 
-  // If panel is visible, get its real height
-  const panelHeight =
-    panel && panel.style.display !== "none"
-      ? panel.offsetHeight
-      : 0;
+  const isLandscapePhone =
+    window.matchMedia("(orientation: landscape) and (max-height: 500px)").matches;
+
+  if (isLandscapePhone) {
+    return {
+      paddingTopLeft: [panelWidth + 20, 20],
+      paddingBottomRight: [40, 20],
+      maxZoom: 12
+    };
+  }
 
   return {
-    paddingTopLeft: [20, 20],
-    paddingBottomRight: [20, panelHeight + 20],
+    paddingTopLeft: [40, 40],
+    paddingBottomRight: [40, panelHeight + 40],
     maxZoom: 12
   };
 }
@@ -580,6 +588,7 @@ function drawChart() {
   const ctx = canvas.getContext("2d");
   const w = canvas.width;
   const h = canvas.height;
+  
   ctx.clearRect(0, 0, w, h);
   if (!currentFlight) return;
 
@@ -614,8 +623,8 @@ function drawChart() {
   const altMaxFL = altMaxFt / 100;
 
   // Ticks
-  const spdTicks = hasSpd ? makeTicks(spdMin, spdMax, 8) : [];
-  const altTicksFL = hasAlt ? makeTicks(altMinFL, altMaxFL, 8) : [];
+  const spdTicks = hasSpd ? makeTicks(spdMin, spdMax, 4) : [];
+  const altTicksFL = hasAlt ? makeTicks(altMinFL, altMaxFL, 4) : [];
 
   let spdMinA = spdMin, spdMaxA = spdMax;
 if (spdTicks.length >= 2) {
